@@ -195,34 +195,39 @@ ${selectedLanguage === 'java' ? '   javac Main.java && java Main' : ''}${selecte
 📚 Pro tip: The AI Tutor can explain your code line-by-line in English!`);
   };
 
-  const askAITutor = async () => {
-    if (!englishInput.trim()) return;
-    setIsLoading(true);
-    const userMessage = { role: 'user', content: englishInput };
-    setChatHistory(prev => [...prev, userMessage]);
+const askAITutor = async () => {
+  if (!englishInput.trim()) return;
+  setIsLoading(true);
+  const userMessage = { role: 'user', content: englishInput };
+  setChatHistory(prev => [...prev, userMessage]);
+  
+  try {
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: englishInput })
+    });
     
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: `You are LingoCode AI Tutor. Help learn programming and English. If their English has mistakes, correct gently first. Then answer their coding question with examples. Add 2-3 vocabulary words.\n\nUser: "${englishInput}"` }]
-        })
-      });
-      const data = await response.json();
-      const aiResponse = data.content?.[0]?.text || 'Sorry, please try again!';
-      setChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
-      setEnglishInput('');
-      setVocabularyLearned(prev => prev + 2);
-      sendToN8n('ai_interaction', { question: englishInput });
-    } catch (error) {
-      setChatHistory(prev => [...prev, { role: 'assistant', content: '⚠️ Connection error! Try again.' }]);
-    } finally {
-      setIsLoading(false);
+    const data = await response.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
     }
-  };
+    
+    const aiResponse = data.response || 'Sorry, please try again!';
+    setChatHistory(prev => [...prev, { role: 'assistant', content: aiResponse }]);
+    setEnglishInput('');
+    setVocabularyLearned(prev => prev + 2);
+    sendToN8n('ai_interaction', { question: englishInput });
+  } catch (error) {
+    setChatHistory(prev => [...prev, { 
+      role: 'assistant', 
+      content: '⚠️ Connection error! Try again.' 
+    }]);
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const startProject = (project) => {
     setActiveTab('playground');
